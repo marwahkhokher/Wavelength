@@ -13,7 +13,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "voice-te
 
 from wavelength_voice.ai_service.contracts import FillerWordOccurrence, WordTimestamp
 
-DEFAULT_FILLER_WORDS = {"um", "uh", "like", "you know", "basically", "actually", "so"}
+DEFAULT_FILLER_WORDS = {
+    # English fillers
+    "um", "uh", "like", "you know", "basically", "actually",
+    "literally", "right", "okay", "so", "well", "i mean",
+    "kind of", "sort of", "maybe", "perhaps",
+    # Roman Urdu / Urdu-English code-switching fillers
+    "matlab", "i mean", "yaar", "bas", "dekh", "thik", "achha",
+    "han", "na", "hmm", "acha", "toh", "ka", "ki", "hai",
+}
 
 
 class FillerDetector:

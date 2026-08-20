@@ -10,12 +10,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_prefix="", extra="ignore")
 
-    # --- Deepgram (streaming STT) ---
-    deepgram_api_key: str = ""
-    deepgram_model: str = "nova-2"
-    deepgram_language: str = "en-US"
-    deepgram_sample_rate: int = 16000
-    deepgram_encoding: str = "linear16"
+    # --- Whisper Small (batch STT, replaces Deepgram) ---
+    whisper_model_size: str = "small"
+    whisper_language: str = "auto"
+    whisper_sample_rate: int = 16000
 
     # --- ElevenLabs (streaming TTS) ---
     elevenlabs_api_key: str = ""

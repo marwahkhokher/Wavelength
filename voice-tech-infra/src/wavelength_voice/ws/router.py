@@ -23,7 +23,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from wavelength_voice.ai_service.contracts import PersonaConfig
 from wavelength_voice.app_state import AppState
-from wavelength_voice.voice_pipeline.stt import DeepgramSTTStream
+from wavelength_voice.voice_pipeline.stt import WhisperSTTStream
 from wavelength_voice.voice_pipeline.tts import ElevenLabsTTSStream
 from wavelength_voice.ws.orchestrator import SessionOrchestrator
 
@@ -63,12 +63,10 @@ async def session_websocket(
     )
 
     settings = state.settings
-    stt = DeepgramSTTStream(
-        api_key=settings.deepgram_api_key,
-        model=settings.deepgram_model,
-        language=settings.deepgram_language,
-        sample_rate=settings.deepgram_sample_rate,
-        encoding=settings.deepgram_encoding,
+    stt = WhisperSTTStream(
+        model_size=settings.whisper_model_size,
+        language=settings.whisper_language,
+        sample_rate=settings.whisper_sample_rate,
     )
     tts = ElevenLabsTTSStream(
         api_key=settings.elevenlabs_api_key,

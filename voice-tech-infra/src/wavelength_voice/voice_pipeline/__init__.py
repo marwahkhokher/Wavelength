@@ -1,7 +1,7 @@
 from wavelength_voice.voice_pipeline.stt import (
-    DeepgramSTTStream,
     STTEvent,
     STTStream,
+    WhisperSTTStream,
 )
 from wavelength_voice.voice_pipeline.tts import ElevenLabsTTSStream, TTSStream
 from wavelength_voice.voice_pipeline.turn_taking import (
@@ -11,7 +11,7 @@ from wavelength_voice.voice_pipeline.turn_taking import (
 )
 
 __all__ = [
-    "DeepgramSTTStream",
+    "WhisperSTTStream",
     "STTEvent",
     "STTStream",
     "ElevenLabsTTSStream",
