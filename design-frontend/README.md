@@ -1,9 +1,19 @@
-# Design + Frontend/App Development
+# Wavelength Mobile
 
-Owns how the app looks, feels, and is built: screens, persona reveal card, onboarding test, growth dashboard, conversation UI, and voice interaction design.
+Expo + React Native application for iOS, Android, and web.
 
-## Folders
-- `designs/` — final UI designs
-- `wireframes/` — early wireframes and flows
-- `app/src/` — frontend app source code
-- `app/assets/` — images, icons, fonts
+## Run locally
+
+```bash
+npm install
+npm start
+```
+
+Scan the QR code with Expo Go, or press `w`, `i`, or `a` for web, iOS, or Android.
+
+## Validation
+
+```bash
+npm run typecheck
+npx expo export --platform web
+```

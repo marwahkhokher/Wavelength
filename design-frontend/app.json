@@ -1,0 +1,1 @@
+{"expo":{"name":"Wavelength","slug":"wavelength","version":"1.0.0","orientation":"portrait","userInterfaceStyle":"light","splash":{"backgroundColor":"#FFF1E7"},"ios":{"supportsTablet":true,"bundleIdentifier":"com.wavelength.mobile"},"android":{"package":"com.wavelength.mobile","adaptiveIcon":{"backgroundColor":"#FFF1E7"}},"web":{"bundler":"metro"}}}
