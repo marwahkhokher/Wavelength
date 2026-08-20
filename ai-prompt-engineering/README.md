@@ -19,6 +19,15 @@ request. For full Qwen evaluation, include the optional `session_context`,
 `stt_result`, and `tone_result` objects defined in
 `voice-tech-infra/src/wavelength_voice/ai_service/contracts.py`.
 
+### Live Qwen evaluation
+
+By default, the evaluator uses its deterministic local scorer. To enable the
+managed Qwen call, copy `ai-prompt-engineering/.env.example` to the
+repository-root `.env`, set `DASHSCOPE_API_KEY` and the region/workspace
+specific `QWEN_BASE_URL`, then restart the service. If the provider is
+unavailable or returns invalid JSON, the service logs the failure and uses the
+deterministic scorer instead.
+
 ## Folders
 - `persona-generation/` — prompts and logic for turning subcategory + free text into a persona config
 - `dynamic-engine/` — turn-by-turn evaluation and persona state shifting

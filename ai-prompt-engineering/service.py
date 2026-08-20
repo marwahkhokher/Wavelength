@@ -10,12 +10,15 @@ import sys
 from pathlib import Path
 
 from fastapi import FastAPI
+from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parent
 VOICE_SRC = ROOT.parent / "voice-tech-infra" / "src"
 for path in (ROOT, VOICE_SRC):
     if str(path) not in sys.path:
         sys.path.insert(0, str(path))
+
+load_dotenv(ROOT.parent / ".env")
 
 from prompt_orchestration.conversation_llm import ConversationLLM
 from qwen_evaluation.deep_evaluator import QwenDeepEvaluator

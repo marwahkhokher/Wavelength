@@ -6,8 +6,11 @@ Output is passed to Prompt Generation LLM per turn.
 
 from __future__ import annotations
 
+import logging
+import os
 import sys
 from pathlib import Path
+from typing import Any, Protocol
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "voice-tech-infra" / "src"))
 
@@ -19,12 +22,29 @@ from wavelength_voice.ai_service.contracts import (
     ToneResult,
 )
 
+from .qwen_client import LiveQwenEvaluationClient
+
+logger = logging.getLogger(__name__)
+
+
+class EvaluationClient(Protocol):
+    async def evaluate(self, payload: dict[str, Any]) -> PerTurnEvaluation: ...
+
 
 class QwenDeepEvaluator:
     """Qwen model wrapper for per-turn deep evaluation."""
 
-    def __init__(self, model_name: str = "Qwen/Qwen2.5-72B-Instruct"):
+    def __init__(
+        self,
+        model_name: str = "Qwen/Qwen2.5-72B-Instruct",
+        live_client: EvaluationClient | None = None,
+    ):
         self.model_name = model_name
+        self.live_client = live_client
+        if self.live_client is None and os.getenv("DASHSCOPE_API_KEY") and os.getenv("QWEN_BASE_URL"):
+            self.live_client = LiveQwenEvaluationClient(model=os.getenv("QWEN_MODEL"))
+        elif self.live_client is None and os.getenv("DASHSCOPE_API_KEY"):
+            logger.warning("DASHSCOPE_API_KEY is set but QWEN_BASE_URL is missing; using deterministic evaluation.")
 
     async def evaluate_turn(
         self,
@@ -39,6 +59,23 @@ class QwenDeepEvaluator:
         usable without a hosted Qwen credential and creates an auditable input
         baseline for a future model-backed evaluator.
         """
+        if self.live_client is not None:
+            try:
+                return await self.live_client.evaluate(
+                    self._live_payload(turn_index, stt_result, tone_result, session_context)
+                )
+            except Exception:  # Keep live practice usable during provider outages or invalid JSON.
+                logger.exception("Live Qwen evaluation failed; using deterministic fallback.")
+
+        return self._evaluate_deterministically(turn_index, stt_result, tone_result, session_context)
+
+    def _evaluate_deterministically(
+        self,
+        turn_index: int,
+        stt_result: STTResult,
+        tone_result: ToneResult,
+        session_context: SessionContext | None,
+    ) -> PerTurnEvaluation:
         transcript = stt_result.transcript.strip()
         words = [word.strip(".,!?;:").lower() for word in transcript.split()]
         word_count = max(stt_result.total_words, len(words), 1)
@@ -90,6 +127,20 @@ class QwenDeepEvaluator:
             key_flaw=key_flaw,
             suggested_conversation_followup_direction=self._followup_direction(scores, main_point),
         )
+
+    @staticmethod
+    def _live_payload(
+        turn_index: int,
+        stt_result: STTResult,
+        tone_result: ToneResult,
+        session_context: SessionContext | None,
+    ) -> dict[str, Any]:
+        return {
+            "turn_index": turn_index,
+            "stt_result": stt_result.model_dump(mode="json"),
+            "tone_result": tone_result.model_dump(mode="json"),
+            "session_context": session_context.model_dump(mode="json") if session_context else None,
+        }
 
     @staticmethod
     def _clamp(value: float) -> float:

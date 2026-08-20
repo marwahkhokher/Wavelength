@@ -5,12 +5,14 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "voice-tech-infra" / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qwen_evaluation.deep_evaluator import QwenDeepEvaluator
 from qwen_evaluation.coaching_engine import CoachingEngine
+from qwen_evaluation.qwen_client import LiveQwenEvaluationClient
 from qwen_evaluation.scorecard_generator import generate_session_scorecard
 from session_context.builder import build_session_context
 from wavelength_voice.ai_service.contracts import (
@@ -20,6 +22,27 @@ from wavelength_voice.ai_service.contracts import (
     STTResult,
     ToneResult,
 )
+
+
+class FakeLiveClient:
+    def __init__(self, result):  # noqa: ANN001
+        self.result = result
+        self.payload = None
+
+    async def evaluate(self, payload):  # noqa: ANN001
+        self.payload = payload
+        return self.result
+
+
+class FakeQwenTransport:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.kwargs = None
+        self.chat = SimpleNamespace(completions=self)
+
+    async def create(self, **kwargs):  # noqa: ANN003
+        self.kwargs = kwargs
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=self.content))])
 
 
 def make_tone(*, emotion: str = "confident", hesitation: float = 0.1) -> ToneResult:
@@ -122,3 +145,40 @@ def test_coaching_report_uses_the_original_answer_without_inventing_results() ->
     assert "improved the release process" in refinement["refined_better_answer"].lower()
     assert "25%" not in refinement["refined_better_answer"]
     assert report["improvement_action_plan"]
+
+
+def test_evaluator_uses_live_provider_when_supplied() -> None:
+    stt = STTResult(
+        transcript="I delivered the agreed outcome.",
+        total_words=5,
+        filler_word_count=0,
+        utterance_duration_sec=2.0,
+    )
+    expected = asyncio.run(QwenDeepEvaluator().evaluate_turn(1, stt, make_tone()))
+    provider = FakeLiveClient(expected)
+
+    actual = asyncio.run(QwenDeepEvaluator(live_client=provider).evaluate_turn(3, stt, make_tone()))
+
+    assert actual == expected
+    assert provider.payload["turn_index"] == 3
+    assert provider.payload["stt_result"]["transcript"] == stt.transcript
+
+
+def test_live_client_parses_fenced_json() -> None:
+    content = "```json\n{\"turn_index\": 1, \"scores\": {\"clarity\": 80, \"empathy\": 70, \"filler_words_score\": 90, \"structure\": 75, \"relevance\": 85, \"confidence\": 80, \"fluency\": 88, \"overall_turn_score\": 81}, \"strengths\": [], \"areas_for_improvement\": [], \"coach_tip\": \"Keep going.\"}\n```"
+
+    parsed = LiveQwenEvaluationClient._parse_json(content)
+
+    assert parsed["turn_index"] == 1
+
+
+def test_live_client_sends_structured_payload_to_qwen_transport() -> None:
+    content = '{"turn_index": 1, "scores": {"clarity": 80, "empathy": 70, "filler_words_score": 90, "structure": 75, "relevance": 85, "confidence": 80, "fluency": 88, "overall_turn_score": 81}, "strengths": [], "areas_for_improvement": [], "coach_tip": "Keep going."}'
+    transport = FakeQwenTransport(content)
+    client = LiveQwenEvaluationClient(client=transport, model="qwen-test")
+
+    evaluation = asyncio.run(client.evaluate({"turn_index": 1, "transcript": "Hello"}))
+
+    assert evaluation.scores.overall_turn_score == 81
+    assert transport.kwargs["model"] == "qwen-test"
+    assert transport.kwargs["messages"][1]["content"] == '{"turn_index": 1, "transcript": "Hello"}'
