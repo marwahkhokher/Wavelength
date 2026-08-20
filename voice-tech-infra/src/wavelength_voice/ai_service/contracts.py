@@ -51,6 +51,11 @@ class AITurnRequest(BaseModel):
     transcript: str
     conversation_history: list[ConversationTurnDTO] = Field(default_factory=list)
     turn_number: int = Field(ge=0)
+    # Optional enriched inputs. They keep the original voice-service request
+    # valid while allowing the hosted AI service to perform full Qwen scoring.
+    session_context: "SessionContext | None" = None
+    stt_result: "STTResult | None" = None
+    tone_result: "ToneResult | None" = None
 
 
 class AITurnResponse(BaseModel):
@@ -61,6 +66,7 @@ class AITurnResponse(BaseModel):
     end_session: bool = False
     feedback_hint: str | None = None
     latency_ms: int | None = None
+    evaluation: "PerTurnEvaluation | None" = None
 
 
 # =====================================================================
