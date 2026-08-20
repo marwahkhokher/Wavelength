@@ -17,9 +17,14 @@ from wavelength_voice.ai_service.contracts import (
     TurnRecord,
 )
 
-from ..qwen_evaluation.deep_evaluator import QwenDeepEvaluator
-from ..stt_filler.stt_engine import WhisperSTTEngine
-from ..tone_analysis.emotion_classifier import EmotionClassifier
+try:  # Package import when the AI modules are installed as a package.
+    from ..qwen_evaluation.deep_evaluator import QwenDeepEvaluator
+    from ..stt_filler.stt_engine import WhisperSTTEngine
+    from ..tone_analysis.emotion_classifier import EmotionClassifier
+except ImportError:  # Direct module import used by the current test harness.
+    from qwen_evaluation.deep_evaluator import QwenDeepEvaluator
+    from stt_filler.stt_engine import WhisperSTTEngine
+    from tone_analysis.emotion_classifier import EmotionClassifier
 from .conversation_llm import ConversationLLM
 from .tts_stream import ElevenLabsTTSClient
 
