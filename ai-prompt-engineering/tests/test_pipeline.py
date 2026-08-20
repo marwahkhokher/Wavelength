@@ -19,7 +19,7 @@ from tone_analysis.emotion_classifier import EmotionClassifier
 from qwen_evaluation.deep_evaluator import QwenDeepEvaluator
 from qwen_evaluation.scorecard_generator import generate_session_scorecard
 from qwen_evaluation.coaching_engine import CoachingEngine
-from prompt_orchestration.interviewer_llm import InterviewerLLM
+from prompt_orchestration.conversation_llm import ConversationLLM
 from prompt_orchestration.pipeline_orchestrator import VoicePipelineOrchestrator
 
 
@@ -28,8 +28,8 @@ def test_session_context_builder():
         session_id="test_1",
         user_id="usr_1",
         mode="professional",
-        scenario_title="Interview",
-        scenario_description="Job interview",
+        scenario_title="Conversation",
+        scenario_description="Job conversation",
         persona_name="Alex",
         persona_role="Hiring Manager",
     )

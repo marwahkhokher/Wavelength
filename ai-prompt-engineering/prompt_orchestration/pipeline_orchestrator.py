@@ -20,7 +20,7 @@ from wavelength_voice.ai_service.contracts import (
 from ..qwen_evaluation.deep_evaluator import QwenDeepEvaluator
 from ..stt_filler.stt_engine import WhisperSTTEngine
 from ..tone_analysis.emotion_classifier import EmotionClassifier
-from .interviewer_llm import InterviewerLLM
+from .conversation_llm import ConversationLLM
 from .tts_stream import ElevenLabsTTSClient
 
 
@@ -32,7 +32,7 @@ class VoicePipelineOrchestrator:
         self.stt_engine = WhisperSTTEngine()
         self.emotion_classifier = EmotionClassifier()
         self.qwen_evaluator = QwenDeepEvaluator()
-        self.prompt_llm = InterviewerLLM()
+        self.prompt_llm = ConversationLLM()
         self.tts_client = ElevenLabsTTSClient()
         self.conversation_history: list[TurnRecord] = []
         self.turn_counter = 0

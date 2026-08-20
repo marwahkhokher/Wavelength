@@ -1,4 +1,4 @@
-"""Interviewer Prompt LLM (Taha's ownership).
+"""Conversation Prompt LLM (Taha's ownership).
 
 Consumes Qwen's deep evaluation report, STT transcript, tone result, persona, and history to generate the next response.
 """
@@ -13,8 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "voice-te
 from wavelength_voice.ai_service.contracts import PerTurnEvaluation, PromptLLMInput, PromptLLMOutput
 
 
-class InterviewerLLM:
-    """Prompt Generation LLM executing Interviewer Roleplay Mode."""
+class ConversationLLM:
+    """Prompt Generation LLM executing Conversation Roleplay Mode."""
 
     def __init__(self, model_name: str = "gpt-4o"):
         self.model_name = model_name
@@ -24,7 +24,7 @@ class InterviewerLLM:
         payload: PromptLLMInput,
         qwen_eval: PerTurnEvaluation,
     ) -> PromptLLMOutput:
-        """Generates the next interviewer turn using Qwen's deep answer evaluation."""
+        """Generates the next conversation turn using Qwen's deep answer evaluation."""
         mode = payload.session_context.mode
         persona_name = payload.session_context.persona.name
         

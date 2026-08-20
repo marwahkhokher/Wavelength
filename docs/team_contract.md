@@ -7,7 +7,7 @@
 
 ## 1. Flow Architecture & Component Pipeline
 
-The architecture follows your exact sequential pipeline: **Qwen performs in-depth answer evaluation per turn first, and passes its evaluation output to the Prompt Generation LLM** so the interviewer AI can respond with complete awareness of the user's answer quality, structure, and tone.
+The architecture follows your exact sequential pipeline: **Qwen performs in-depth answer evaluation per turn first, and passes its evaluation output to the Prompt Generation LLM** so the conversation AI can respond with complete awareness of the user's answer quality, structure, and tone.
 
 ```
                                 [ User Speech Utterance ]
@@ -175,7 +175,7 @@ Areej: Whisper Small STT                                       Zaid: emotion2vec
     "emotional_alignment": "Speech was hesitant; tone showed uncertainty.",
     "key_flaw": "Vague quantitative claims without supporting metrics."
   },
-  "suggested_interviewer_followup_direction": "Challenge the user on specific velocity numbers or metrics."
+  "suggested_conversation_followup_direction": "Challenge the user on specific velocity numbers or metrics."
 }
 ```
 
@@ -241,7 +241,7 @@ Areej: Whisper Small STT                                       Zaid: emotion2vec
      - `current_tone`: Primary emotion, WPM, pauses (Zaid)
      - `qwen_evaluation`: Deep answer analysis & metric scores (Ahmed)
      - `conversation_history`: Previous turns
-  2. Prompt Generation LLM uses **Qwen's deep answer analysis** to generate the next interviewer question/response in character.
+  2. Prompt Generation LLM uses **Qwen's deep answer analysis** to generate the next conversation question/response in character.
   3. Stream text output to ElevenLabs TTS for real-time audio playback.
   4. VAD Interruption: Instantly halt ElevenLabs playback if user interrupts mid-sentence ("Cut AI off").
 
@@ -251,7 +251,7 @@ Areej: Whisper Small STT                                       Zaid: emotion2vec
 
 To simplify system complexity and API integrations, the **same underlying LLM provider/family** (e.g. Qwen / GPT-4o / Claude) is utilized across two operational modes:
 
-1. **Interviewer Roleplay Mode (Taha - Live Session)**:
+1. **Conversation Roleplay Mode (Taha - Live Session)**:
    * **System Prompt**: *"You are playing [Persona Name]. Respond to the candidate's utterance using Qwen's deep evaluation report, maintaining persona tone (Professional vs Personal)."*
 2. **Coaching & Refinement Mode (Ahmed - Post Session)**:
    * **System Prompt**: *"You are an expert executive communications coach. Analyze the full session transcript and evaluations to generate 'Before vs After' answer refinements and actionable improvement recommendations."*
