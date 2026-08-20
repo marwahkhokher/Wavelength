@@ -28,16 +28,16 @@ class ConversationLLM:
         mode = payload.session_context.mode
         persona_name = payload.session_context.persona.name
         
+        followup = qwen_eval.suggested_conversation_followup_direction
+
         # Tone register selection based on Professional vs Personal mode (Section 6 PRD)
         if mode == "professional":
             reply = (
-                f"That is an interesting point regarding your team velocity. "
-                f"However, as {persona_name}, could you clarify what specific metrics supported that growth?"
+                f"That is an interesting point. As {persona_name}, {followup}"
             )
         else:
             reply = (
-                f"Yaar, that sounds okay, but how do I know the velocity actually went up? "
-                f"Do you have the numbers for that?"
+                f"Yaar, I hear you, but {followup}"
             )
             
         return PromptLLMOutput(

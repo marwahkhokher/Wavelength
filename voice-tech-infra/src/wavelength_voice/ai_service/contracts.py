@@ -88,6 +88,12 @@ class BaselineMetrics(BaseModel):
     confidence: float = 6.0
     structure: float = 5.5
     relevance: float = 7.0
+    fluency: float = 6.0
+
+    @property
+    def filler_words_score(self) -> float:
+        """Compatibility name for the positive 1–10 filler-word metric."""
+        return self.filler_words
 
 
 class SessionContext(BaseModel):
@@ -147,6 +153,7 @@ class MetricScores(BaseModel):
     structure: float = Field(ge=0.0, le=100.0)
     relevance: float = Field(ge=0.0, le=100.0)
     confidence: float = Field(ge=0.0, le=100.0)
+    fluency: float = Field(ge=0.0, le=100.0, default=0.0)
     overall_turn_score: float = Field(ge=0.0, le=100.0)
 
 
@@ -156,6 +163,11 @@ class PerTurnEvaluation(BaseModel):
     strengths: list[str] = Field(default_factory=list)
     areas_for_improvement: list[str] = Field(default_factory=list)
     coach_tip: str
+    main_point_detected: str = ""
+    structural_assessment: str = ""
+    emotional_alignment: str = ""
+    key_flaw: str = ""
+    suggested_conversation_followup_direction: str = ""
 
 
 class FinalSessionEvaluation(BaseModel):

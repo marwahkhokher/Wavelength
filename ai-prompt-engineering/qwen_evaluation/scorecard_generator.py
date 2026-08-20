@@ -32,6 +32,7 @@ def generate_session_scorecard(
             structure=50.0,
             relevance=50.0,
             confidence=50.0,
+            fluency=50.0,
             overall_turn_score=50.0,
         )
     else:
@@ -43,6 +44,7 @@ def generate_session_scorecard(
             structure=round(sum(e.scores.structure for e in turn_evaluations) / n, 1),
             relevance=round(sum(e.scores.relevance for e in turn_evaluations) / n, 1),
             confidence=round(sum(e.scores.confidence for e in turn_evaluations) / n, 1),
+            fluency=round(sum(e.scores.fluency for e in turn_evaluations) / n, 1),
             overall_turn_score=round(sum(e.scores.overall_turn_score for e in turn_evaluations) / n, 1),
         )
         
@@ -51,6 +53,8 @@ def generate_session_scorecard(
         "confidence_delta": round((avg_scores.confidence / 10.0) - baseline.confidence, 1),
         "structure_delta": round((avg_scores.structure / 10.0) - baseline.structure, 1),
         "relevance_delta": round((avg_scores.relevance / 10.0) - baseline.relevance, 1),
+        "fluency_delta": round((avg_scores.fluency / 10.0) - baseline.fluency, 1),
+        "filler_words_delta": round((avg_scores.filler_words_score / 10.0) - baseline.filler_words_score, 1),
     }
     
     summary = [
@@ -58,6 +62,8 @@ def generate_session_scorecard(
         f"Confidence: {avg_scores.confidence / 10:.1f}/10",
         f"Structure: {avg_scores.structure / 10:.1f}/10",
         f"Relevance: {avg_scores.relevance / 10:.1f}/10",
+        f"Fluency: {avg_scores.fluency / 10:.1f}/10",
+        f"Filler words: {avg_scores.filler_words_score / 10:.1f}/10",
     ]
     
     return FinalSessionEvaluation(

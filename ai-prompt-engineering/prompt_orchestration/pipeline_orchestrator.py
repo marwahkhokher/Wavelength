@@ -58,6 +58,7 @@ class VoicePipelineOrchestrator:
             turn_index=self.turn_counter,
             stt_result=stt_result,
             tone_result=tone_result,
+            session_context=self.session_context,
         )
         
         # Step 4: Prompt Generation LLM (Taha)
