@@ -18,3 +18,4 @@ boto3==1.35.24
 alembic-utils==0.8.4
 pytest==8.3.3
 httpx==0.27.2
+bcrypt==4.0.1
