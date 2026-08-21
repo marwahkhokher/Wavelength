@@ -78,7 +78,10 @@ def generate_persona(
     session.persona_description_raw = payload.persona_description
     session.persona_input_method = payload.input_method
     session.persona_profile = generate_persona_profile(
-        session.scenario_text, payload.persona_description, session.mode
+        session.scenario_text,
+        payload.persona_description,
+        session.mode,
+        session.difficulty or "medium",
     )
     session.persona_finalized = False
     db.commit()
