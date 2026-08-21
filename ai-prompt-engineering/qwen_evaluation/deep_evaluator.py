@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class EvaluationClient(Protocol):
-    async def evaluate(self, payload: dict[str, Any]) -> PerTurnEvaluation: ...
+    async def evaluate_session(self, payload: dict[str, Any]) -> PerTurnEvaluation: ...
 
 
 class QwenDeepEvaluator:
@@ -41,10 +41,10 @@ class QwenDeepEvaluator:
     ):
         self.model_name = model_name
         self.live_client = live_client
-        if self.live_client is None and os.getenv("DASHSCOPE_API_KEY") and os.getenv("QWEN_BASE_URL"):
+        if self.live_client is None and os.getenv("QWEN_BASE_URL"):
             self.live_client = LiveQwenEvaluationClient(model=os.getenv("QWEN_MODEL"))
-        elif self.live_client is None and os.getenv("DASHSCOPE_API_KEY"):
-            logger.warning("DASHSCOPE_API_KEY is set but QWEN_BASE_URL is missing; using deterministic evaluation.")
+        elif self.live_client is None and (os.getenv("QWEN_API_KEY") or os.getenv("DASHSCOPE_API_KEY")):
+            logger.warning("A Qwen API key is set but QWEN_BASE_URL is missing; live evaluation is disabled.")
 
     async def evaluate_turn(
         self,
@@ -55,19 +55,43 @@ class QwenDeepEvaluator:
     ) -> PerTurnEvaluation:
         """Evaluate one turn from the STT and acoustic contracts.
 
-        This local scorer is intentionally deterministic: it keeps live turns
-        usable without a hosted Qwen credential and creates an auditable input
-        baseline for a future model-backed evaluator.
+        Always uses the deterministic scorer, even when a live Qwen client is
+        configured: a single live call can take minutes on CPU-only hardware,
+        far too slow for the live turn-taking loop. The live model runs once
+        per session instead - see evaluate_session.
         """
-        if self.live_client is not None:
-            try:
-                return await self.live_client.evaluate(
-                    self._live_payload(turn_index, stt_result, tone_result, session_context)
-                )
-            except Exception:  # Keep live practice usable during provider outages or invalid JSON.
-                logger.exception("Live Qwen evaluation failed; using deterministic fallback.")
-
         return self._evaluate_deterministically(turn_index, stt_result, tone_result, session_context)
+
+    async def evaluate_session(
+        self,
+        turns: list[tuple[STTResult, ToneResult]],
+        session_context: SessionContext | None = None,
+    ) -> PerTurnEvaluation | None:
+        """Runs one holistic Qwen review of the whole conversation after it ends.
+
+        Returns None if no live client is configured, or if the call fails -
+        the deterministic per-turn evaluations and the numeric scorecard
+        (generate_session_scorecard) still work without this narrative review.
+        """
+        if self.live_client is None or not turns:
+            return None
+
+        payload = {
+            "turns": [
+                {
+                    "turn_index": idx,
+                    "stt_result": stt_result.model_dump(mode="json"),
+                    "tone_result": tone_result.model_dump(mode="json"),
+                }
+                for idx, (stt_result, tone_result) in enumerate(turns, start=1)
+            ],
+            "session_context": session_context.model_dump(mode="json") if session_context else None,
+        }
+        try:
+            return await self.live_client.evaluate_session(payload)
+        except Exception:  # Keep the session summary usable during provider outages or invalid JSON.
+            logger.exception("Session-level Qwen evaluation failed.")
+            return None
 
     def _evaluate_deterministically(
         self,
@@ -127,20 +151,6 @@ class QwenDeepEvaluator:
             key_flaw=key_flaw,
             suggested_conversation_followup_direction=self._followup_direction(scores, main_point),
         )
-
-    @staticmethod
-    def _live_payload(
-        turn_index: int,
-        stt_result: STTResult,
-        tone_result: ToneResult,
-        session_context: SessionContext | None,
-    ) -> dict[str, Any]:
-        return {
-            "turn_index": turn_index,
-            "stt_result": stt_result.model_dump(mode="json"),
-            "tone_result": tone_result.model_dump(mode="json"),
-            "session_context": session_context.model_dump(mode="json") if session_context else None,
-        }
 
     @staticmethod
     def _clamp(value: float) -> float:

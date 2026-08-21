@@ -29,7 +29,7 @@ class FakeLiveClient:
         self.result = result
         self.payload = None
 
-    async def evaluate(self, payload):  # noqa: ANN001
+    async def evaluate_session(self, payload):  # noqa: ANN001
         self.payload = payload
         return self.result
 
@@ -147,21 +147,72 @@ def test_coaching_report_uses_the_original_answer_without_inventing_results() ->
     assert report["improvement_action_plan"]
 
 
-def test_evaluator_uses_live_provider_when_supplied() -> None:
+def test_evaluator_never_calls_live_client_for_per_turn_evaluation() -> None:
+    """Per-turn evaluation must stay fast: a live call can take minutes on
+    CPU-only hardware, far too slow for the live turn-taking loop."""
     stt = STTResult(
         transcript="I delivered the agreed outcome.",
         total_words=5,
         filler_word_count=0,
         utterance_duration_sec=2.0,
     )
-    expected = asyncio.run(QwenDeepEvaluator().evaluate_turn(1, stt, make_tone()))
-    provider = FakeLiveClient(expected)
+    provider = FakeLiveClient(result=None)
+    expected = asyncio.run(QwenDeepEvaluator().evaluate_turn(3, stt, make_tone()))
 
     actual = asyncio.run(QwenDeepEvaluator(live_client=provider).evaluate_turn(3, stt, make_tone()))
 
     assert actual == expected
-    assert provider.payload["turn_index"] == 3
-    assert provider.payload["stt_result"]["transcript"] == stt.transcript
+    assert provider.payload is None
+
+
+def test_evaluate_session_sends_every_turn_to_the_live_provider() -> None:
+    stt_1 = STTResult(
+        transcript="First, I identified the bottleneck.",
+        total_words=6,
+        filler_word_count=0,
+        utterance_duration_sec=2.5,
+    )
+    stt_2 = STTResult(
+        transcript="Then I automated the deploy step.",
+        total_words=6,
+        filler_word_count=0,
+        utterance_duration_sec=2.5,
+    )
+    expected = asyncio.run(QwenDeepEvaluator().evaluate_turn(1, stt_1, make_tone()))
+    provider = FakeLiveClient(expected)
+    context = make_context()
+
+    actual = asyncio.run(
+        QwenDeepEvaluator(live_client=provider).evaluate_session(
+            [(stt_1, make_tone()), (stt_2, make_tone(emotion="hesitant", hesitation=0.6))], context
+        )
+    )
+
+    assert actual == expected
+    assert len(provider.payload["turns"]) == 2
+    assert provider.payload["turns"][0]["stt_result"]["transcript"] == stt_1.transcript
+    assert provider.payload["turns"][1]["stt_result"]["transcript"] == stt_2.transcript
+    assert provider.payload["session_context"]["session_id"] == context.session_id
+
+
+def test_evaluate_session_returns_none_without_a_live_client() -> None:
+    stt = STTResult(transcript="Hi.", total_words=1, filler_word_count=0, utterance_duration_sec=1.0)
+
+    result = asyncio.run(QwenDeepEvaluator().evaluate_session([(stt, make_tone())]))
+
+    assert result is None
+
+
+def test_evaluate_session_returns_none_when_the_live_provider_fails() -> None:
+    class FailingClient:
+        async def evaluate_session(self, payload):  # noqa: ANN001
+            raise RuntimeError("provider outage")
+
+    stt = STTResult(transcript="Hi.", total_words=1, filler_word_count=0, utterance_duration_sec=1.0)
+
+    result = asyncio.run(QwenDeepEvaluator(live_client=FailingClient()).evaluate_session([(stt, make_tone())]))
+
+    assert result is None
 
 
 def test_live_client_parses_fenced_json() -> None:
@@ -173,12 +224,12 @@ def test_live_client_parses_fenced_json() -> None:
 
 
 def test_live_client_sends_structured_payload_to_qwen_transport() -> None:
-    content = '{"turn_index": 1, "scores": {"clarity": 80, "empathy": 70, "filler_words_score": 90, "structure": 75, "relevance": 85, "confidence": 80, "fluency": 88, "overall_turn_score": 81}, "strengths": [], "areas_for_improvement": [], "coach_tip": "Keep going."}'
+    content = '{"turn_index": 2, "scores": {"clarity": 80, "empathy": 70, "filler_words_score": 90, "structure": 75, "relevance": 85, "confidence": 80, "fluency": 88, "overall_turn_score": 81}, "strengths": [], "areas_for_improvement": [], "coach_tip": "Keep going."}'
     transport = FakeQwenTransport(content)
     client = LiveQwenEvaluationClient(client=transport, model="qwen-test")
 
-    evaluation = asyncio.run(client.evaluate({"turn_index": 1, "transcript": "Hello"}))
+    evaluation = asyncio.run(client.evaluate_session({"turns": [{"turn_index": 1}], "session_context": None}))
 
     assert evaluation.scores.overall_turn_score == 81
     assert transport.kwargs["model"] == "qwen-test"
-    assert transport.kwargs["messages"][1]["content"] == '{"turn_index": 1, "transcript": "Hello"}'
+    assert transport.kwargs["messages"][1]["content"] == '{"turns": [{"turn_index": 1}], "session_context": null}'

@@ -1,4 +1,11 @@
-"""Managed Qwen client using Alibaba Model Studio's OpenAI-compatible API."""
+"""Qwen client for any OpenAI-compatible endpoint - a local server (e.g. Ollama)
+by default, or Alibaba Model Studio's hosted API if configured.
+
+Called once per session, after the conversation ends, rather than per turn:
+a single call on CPU-only local hardware can take several minutes, which is
+too slow to sit in the live turn-taking loop. See
+QwenDeepEvaluator.evaluate_session.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +19,30 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "voice-te
 
 from wavelength_voice.ai_service.contracts import PerTurnEvaluation
 
-DEFAULT_MODEL = "qwen-plus"
+DEFAULT_MODEL = "qwen3.5:4b"
+# Local OpenAI-compatible servers (Ollama, vLLM, LM Studio) don't check the API
+# key, but the OpenAI SDK requires a non-empty string to be passed.
+LOCAL_PLACEHOLDER_API_KEY = "not-needed-for-local-server"
+
+SESSION_SYSTEM_PROMPT = (
+    "You are a precise communications evaluator reviewing an entire practice "
+    "conversation, not a single turn. You are given every user turn from the "
+    "session, each with its transcript and tone data, plus the scenario "
+    "context. Return JSON only, with no Markdown, as ONE holistic evaluation "
+    "of the full session. It must validate as PerTurnEvaluation: turn_index "
+    "(set to the total number of turns), scores (0-100 clarity, empathy, "
+    "filler_words_score, structure, relevance, confidence, fluency, "
+    "overall_turn_score) reflecting the session as a whole, strengths, "
+    "areas_for_improvement, coach_tip, main_point_detected (the overall "
+    "theme across turns), structural_assessment, emotional_alignment (how "
+    "tone evolved across the session), key_flaw, and "
+    "suggested_conversation_followup_direction (what to practice next). "
+    "Base conclusions only on the input."
+)
 
 
 class LiveQwenEvaluationClient:
-    """Converts a structured turn payload into a validated Qwen evaluation."""
+    """Runs one holistic Qwen review of a full conversation session."""
 
     def __init__(
         self,
@@ -31,32 +57,26 @@ class LiveQwenEvaluationClient:
             self.client = client
             return
 
-        resolved_key = api_key or os.getenv("DASHSCOPE_API_KEY")
         resolved_base_url = base_url or os.getenv("QWEN_BASE_URL")
-        if not resolved_key or not resolved_base_url:
-            raise ValueError("DASHSCOPE_API_KEY and QWEN_BASE_URL are required for live Qwen evaluation.")
+        if not resolved_base_url:
+            raise ValueError("QWEN_BASE_URL is required for live Qwen evaluation.")
+        resolved_key = (
+            api_key
+            or os.getenv("QWEN_API_KEY")
+            or os.getenv("DASHSCOPE_API_KEY")
+            or LOCAL_PLACEHOLDER_API_KEY
+        )
 
         from openai import AsyncOpenAI
 
         self.client = AsyncOpenAI(api_key=resolved_key, base_url=resolved_base_url)
 
-    async def evaluate(self, payload: dict[str, Any]) -> PerTurnEvaluation:
+    async def evaluate_session(self, payload: dict[str, Any]) -> PerTurnEvaluation:
         completion = await self.client.chat.completions.create(
             model=self.model,
             temperature=0.2,
             messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a precise communications evaluator for a spoken conversation. "
-                        "Return JSON only, with no Markdown. It must validate as PerTurnEvaluation: "
-                        "turn_index, scores (0-100 clarity, empathy, filler_words_score, "
-                        "structure, relevance, confidence, fluency, overall_turn_score), "
-                        "strengths, areas_for_improvement, coach_tip, main_point_detected, "
-                        "structural_assessment, emotional_alignment, key_flaw, and "
-                        "suggested_conversation_followup_direction. Base conclusions only on the input."
-                    ),
-                },
+                {"role": "system", "content": SESSION_SYSTEM_PROMPT},
                 {"role": "user", "content": json.dumps(payload)},
             ],
         )

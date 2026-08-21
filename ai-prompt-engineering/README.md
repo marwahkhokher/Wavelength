@@ -21,12 +21,22 @@ request. For full Qwen evaluation, include the optional `session_context`,
 
 ### Live Qwen evaluation
 
-By default, the evaluator uses its deterministic local scorer. To enable the
-managed Qwen call, copy `ai-prompt-engineering/.env.example` to the
-repository-root `.env`, set `DASHSCOPE_API_KEY` and the region/workspace
-specific `QWEN_BASE_URL`, then restart the service. If the provider is
-unavailable or returns invalid JSON, the service logs the failure and uses the
-deterministic scorer instead.
+By default, the evaluator uses its deterministic local scorer. To enable real
+Qwen scoring, copy `ai-prompt-engineering/.env.example` to the repository-root
+`.env` and restart the service. Two options:
+
+- **Local, free (default):** install [Ollama](https://ollama.com), run
+  `ollama pull qwen3.5:4b`, and leave the `.env.example` defaults as-is
+  (`QWEN_BASE_URL=http://localhost:11434/v1`). No API key is needed - Ollama
+  exposes an OpenAI-compatible endpoint that `LiveQwenEvaluationClient`
+  (`qwen_evaluation/qwen_client.py`) talks to directly.
+- **Hosted, paid:** set `DASHSCOPE_API_KEY` and the region-specific
+  `QWEN_BASE_URL` for Alibaba Model Studio instead (see the commented-out
+  block in `.env.example`).
+
+`QwenDeepEvaluator` picks the live client automatically whenever
+`QWEN_BASE_URL` is set. If the provider is unavailable or returns invalid
+JSON, the service logs the failure and uses the deterministic scorer instead.
 
 ## Folders
 - `persona-generation/` — prompts and logic for turning subcategory + free text into a persona config
