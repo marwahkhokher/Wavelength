@@ -1,0 +1,9 @@
+pydantic>=2.7
+
+# dev / test
+pytest>=8.2
+pytest-asyncio>=0.23
+
+# only needed to actually run GeminiLLMClient against a live key - not
+# required for the rest of this module or its test suite
+# google-genai>=0.3
